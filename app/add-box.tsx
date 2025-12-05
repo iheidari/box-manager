@@ -1,6 +1,6 @@
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -15,12 +15,7 @@ import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-
-type Item = {
-  id: string;
-  name: string;
-  imageUri: string | null;
-};
+import { Box, Item, storage } from "@/utils/storage";
 
 export default function AddBoxScreen() {
   const colorScheme = useColorScheme();
@@ -29,24 +24,134 @@ export default function AddBoxScreen() {
   const [items, setItems] = useState<Item[]>([
     { id: "1", name: "", imageUri: null },
   ]);
+  const [boxId] = useState(() => Date.now().toString());
+  const boxTitleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const itemNameTimeoutsRef = useRef<
+    Map<string, ReturnType<typeof setTimeout>>
+  >(new Map());
+  // Use refs to track latest values for timeouts
+  const boxTitleRef = useRef(boxTitle);
+  const itemsRef = useRef(items);
 
-  const handleBack = () => {
+  // Initialize default box title on mount
+  useEffect(() => {
+    const initializeDefaultTitle = async () => {
+      const existingBoxes = await storage.getBoxes();
+      const nextBoxNumber = existingBoxes.length + 1;
+      const defaultTitle = `Box ${nextBoxNumber}`;
+      setBoxTitle(defaultTitle);
+      boxTitleRef.current = defaultTitle;
+    };
+    initializeDefaultTitle();
+  }, []);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    boxTitleRef.current = boxTitle;
+  }, [boxTitle]);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  const saveBox = async (title: string, boxItems: Item[]) => {
+    // Only save if box has a title
+    if (!title.trim()) {
+      return;
+    }
+
+    // Filter out empty items but allow box with no items
+    const validItems = boxItems.filter((item) => item.name.trim() !== "");
+
+    const box: Box = {
+      id: boxId,
+      name: title.trim(),
+      items: validItems.map((item) => ({
+        id: item.id,
+        name: item.name.trim(),
+        imageUri: item.imageUri,
+      })),
+    };
+
+    // Check if box already exists, if so update it, otherwise add it
+    const existingBoxes = await storage.getBoxes();
+    const existingIndex = existingBoxes.findIndex((b) => b.id === boxId);
+
+    if (existingIndex >= 0) {
+      existingBoxes[existingIndex] = box;
+      await storage.saveBoxes(existingBoxes);
+    } else {
+      await storage.addBox(box);
+    }
+  };
+
+  const handleBack = async () => {
+    // Clear any pending timeouts
+    if (boxTitleTimeoutRef.current) {
+      clearTimeout(boxTitleTimeoutRef.current);
+      boxTitleTimeoutRef.current = null;
+    }
+    itemNameTimeoutsRef.current.forEach((timeout) => {
+      clearTimeout(timeout);
+    });
+    itemNameTimeoutsRef.current.clear();
+
+    // Save immediately before going back using refs to ensure latest values
+    await saveBox(boxTitleRef.current, itemsRef.current);
     router.back();
   };
 
-  const handleAddItem = () => {
-    setItems([
+  const handleAddItem = async () => {
+    const newItems = [
       ...items,
       {
         id: Date.now().toString(),
         name: "",
         imageUri: null,
       },
-    ]);
+    ];
+    setItems(newItems);
+    // Save immediately when item is added
+    await saveBox(boxTitle, newItems);
   };
 
   const handleItemNameChange = (id: string, name: string) => {
-    setItems(items.map((item) => (item.id === id ? { ...item, name } : item)));
+    const updatedItems = items.map((item) =>
+      item.id === id ? { ...item, name } : item
+    );
+    setItems(updatedItems);
+    itemsRef.current = updatedItems;
+
+    // Clear existing timeout for this item
+    const existingTimeout = itemNameTimeoutsRef.current.get(id);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Set new timeout to save after user stops typing (500ms)
+    // Use refs to get latest values
+    const timeout = setTimeout(() => {
+      saveBox(boxTitleRef.current, itemsRef.current);
+      itemNameTimeoutsRef.current.delete(id);
+    }, 500);
+
+    itemNameTimeoutsRef.current.set(id, timeout);
+  };
+
+  const handleBoxTitleChange = (text: string) => {
+    setBoxTitle(text);
+    boxTitleRef.current = text;
+
+    // Clear existing timeout
+    if (boxTitleTimeoutRef.current) {
+      clearTimeout(boxTitleTimeoutRef.current);
+    }
+
+    // Set new timeout to save after user stops typing (500ms)
+    // Use refs to get latest values
+    boxTitleTimeoutRef.current = setTimeout(() => {
+      saveBox(boxTitleRef.current, itemsRef.current);
+    }, 500);
   };
 
   const handleOpenCamera = async (itemId: string) => {
@@ -67,15 +172,28 @@ export default function AddBoxScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      setItems(
-        items.map((item) =>
-          item.id === itemId
-            ? { ...item, imageUri: result.assets[0].uri }
-            : item
-        )
+      const updatedItems = items.map((item) =>
+        item.id === itemId ? { ...item, imageUri: result.assets[0].uri } : item
       );
+      setItems(updatedItems);
+      // Save immediately when image is added
+      await saveBox(boxTitle, updatedItems);
     }
   };
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    const boxTitleTimeout = boxTitleTimeoutRef.current;
+    const itemTimeouts = itemNameTimeoutsRef.current;
+
+    return () => {
+      if (boxTitleTimeout) {
+        clearTimeout(boxTitleTimeout);
+      }
+      itemTimeouts.forEach((timeout) => clearTimeout(timeout));
+      itemTimeouts.clear();
+    };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -116,7 +234,7 @@ export default function AddBoxScreen() {
               theme === "light" ? Colors.light.icon : Colors.dark.icon
             }
             value={boxTitle}
-            onChangeText={setBoxTitle}
+            onChangeText={handleBoxTitleChange}
             autoFocus
           />
 

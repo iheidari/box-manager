@@ -1,4 +1,5 @@
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { FlatList, StyleSheet, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -7,53 +8,25 @@ import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-
-type Item = {
-  id: string;
-  name: string;
-};
-
-type Box = {
-  id: string;
-  name: string;
-  items: Item[];
-};
-
-// Sample data - replace with your actual data source
-const sampleBoxes: Box[] = [
-  {
-    id: "1",
-    name: "Kitchen Supplies",
-    items: [
-      { id: "1-1", name: "Plates" },
-      { id: "1-2", name: "Cups" },
-      { id: "1-3", name: "Utensils" },
-    ],
-  },
-  {
-    id: "2",
-    name: "Electronics",
-    items: [
-      { id: "2-1", name: "Laptop" },
-      { id: "2-2", name: "Chargers" },
-      { id: "2-3", name: "Headphones" },
-    ],
-  },
-  {
-    id: "3",
-    name: "Books",
-    items: [
-      { id: "3-1", name: "Novels" },
-      { id: "3-2", name: "Textbooks" },
-    ],
-  },
-];
+import { Box, storage } from "@/utils/storage";
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme ?? "light";
+  const [boxes, setBoxes] = useState<Box[]>([]);
   const borderColor =
     theme === "light" ? "rgba(0, 0, 0, 0.1)" : "rgba(255, 255, 255, 0.1)";
+
+  const loadBoxes = useCallback(async () => {
+    const loadedBoxes = await storage.getBoxes();
+    setBoxes(loadedBoxes);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadBoxes();
+    }, [loadBoxes])
+  );
 
   const renderBox = ({ item: box }: { item: Box }) => (
     <ThemedView style={[styles.boxContainer, { borderColor }]}>
@@ -92,11 +65,18 @@ export default function HomeScreen() {
         <ThemedText type="title">My Boxes</ThemedText>
       </ThemedView>
       <FlatList
-        data={sampleBoxes}
+        data={boxes}
         renderItem={renderBox}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <ThemedView style={styles.emptyContainer}>
+            <ThemedText style={styles.emptyText}>
+              No boxes yet. Tap the + button to create one!
+            </ThemedText>
+          </ThemedView>
+        }
       />
       <TouchableOpacity
         style={[
@@ -173,5 +153,13 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: "center",
+  },
+  emptyText: {
+    textAlign: "center",
+    opacity: 0.6,
   },
 });
