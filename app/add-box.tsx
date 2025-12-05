@@ -232,6 +232,26 @@ export default function AddBoxScreen() {
     }
   };
 
+  const handleDeleteItem = (itemId: string) => {
+    Alert.alert("Delete Item", "Are you sure you want to delete this item?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          const updatedItems = items.filter((item) => item.id !== itemId);
+          setItems(updatedItems);
+          itemsRef.current = updatedItems;
+          // Save immediately when item is deleted
+          await saveBox(boxTitle, updatedItems);
+        },
+      },
+    ]);
+  };
+
   // Cleanup timeouts on unmount
   useEffect(() => {
     const boxTitleTimeout = boxTitleTimeoutRef.current;
@@ -310,6 +330,28 @@ export default function AddBoxScreen() {
 
             {items.map((item) => (
               <ThemedView key={item.id} style={styles.itemRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.deleteButton,
+                    {
+                      backgroundColor:
+                        theme === "light"
+                          ? "rgba(255, 59, 48, 0.1)"
+                          : "rgba(255, 59, 48, 0.2)",
+                    },
+                  ]}
+                  onPress={() => handleDeleteItem(item.id)}
+                >
+                  <IconSymbol
+                    name="xmark"
+                    size={16}
+                    color={
+                      theme === "light"
+                        ? "rgba(255, 59, 48, 1)"
+                        : "rgba(255, 59, 48, 0.9)"
+                    }
+                  />
+                </TouchableOpacity>
                 <TextInput
                   style={[
                     styles.itemInput,
@@ -407,6 +449,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    justifyContent: "center",
+    alignItems: "center",
   },
   itemInput: {
     flex: 1,
