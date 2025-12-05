@@ -1,6 +1,6 @@
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -26,7 +26,19 @@ export default function AddBoxScreen() {
   const [items, setItems] = useState<Item[]>([
     { id: "1", name: "", imageUri: null },
   ]);
-  const [boxId] = useState(() => params.id || Date.now().toString());
+  // Generate a stable ID for new boxes, or use params.id for editing
+  // Use ref to persist new box ID across re-renders
+  const newBoxIdRef = useRef<string | null>(null);
+  const boxId = useMemo(() => {
+    if (params.id) {
+      return params.id;
+    }
+    // Generate ID once for new boxes and persist it
+    if (!newBoxIdRef.current) {
+      newBoxIdRef.current = Date.now().toString();
+    }
+    return newBoxIdRef.current;
+  }, [params.id]);
   const boxTitleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const itemNameTimeoutsRef = useRef<
     Map<string, ReturnType<typeof setTimeout>>
@@ -34,6 +46,13 @@ export default function AddBoxScreen() {
   // Use refs to track latest values for timeouts
   const boxTitleRef = useRef(boxTitle);
   const itemsRef = useRef(items);
+
+  // Reset new box ID when switching from editing to creating
+  useEffect(() => {
+    if (!params.id && newBoxIdRef.current) {
+      newBoxIdRef.current = null;
+    }
+  }, [params.id]);
 
   // Initialize box data on mount
   useEffect(() => {
@@ -52,6 +71,18 @@ export default function AddBoxScreen() {
               : [{ id: Date.now().toString(), name: "", imageUri: null }];
           setItems(boxItems);
           itemsRef.current = boxItems;
+        } else {
+          // Box not found - show error and redirect back
+          Alert.alert(
+            "Box Not Found",
+            "The box you're trying to edit no longer exists.",
+            [
+              {
+                text: "OK",
+                onPress: () => router.back(),
+              },
+            ]
+          );
         }
       } else {
         // Initialize default box title for new box
