@@ -1,6 +1,13 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { FlatList, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  FlatList,
+  Image,
+  Modal,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
@@ -14,6 +21,7 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme ?? "light";
   const [boxes, setBoxes] = useState<Box[]>([]);
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const borderColor =
     theme === "light" ? "rgba(0, 0, 0, 0.1)" : "rgba(255, 255, 255, 0.1)";
 
@@ -50,13 +58,40 @@ export default function HomeScreen() {
         </ThemedView>
         <ThemedView style={styles.itemsContainer}>
           {box.items.map((item) => (
-            <ThemedView key={item.id} style={styles.itemRow}>
-              <IconSymbol
-                name="circle.fill"
-                size={8}
-                color={theme === "light" ? Colors.light.icon : Colors.dark.icon}
-              />
-              <ThemedText style={styles.itemName}>{item.name}</ThemedText>
+            <ThemedView
+              key={item.id}
+              style={[
+                styles.itemCard,
+                {
+                  backgroundColor:
+                    theme === "light"
+                      ? "rgba(0, 0, 0, 0.03)"
+                      : "rgba(255, 255, 255, 0.3)",
+                },
+              ]}
+            >
+              <TouchableOpacity
+                onPress={() => {
+                  if (item.imageUri) {
+                    setSelectedImageUri(item.imageUri);
+                  }
+                }}
+                activeOpacity={0.8}
+                disabled={!item.imageUri}
+              >
+                <Image
+                  source={
+                    item.imageUri
+                      ? { uri: item.imageUri }
+                      : require("@/assets/images/default-item.png")
+                  }
+                  style={styles.itemImage}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+              <ThemedText style={styles.itemName} numberOfLines={2}>
+                {item.name}
+              </ThemedText>
             </ThemedView>
           ))}
         </ThemedView>
@@ -100,6 +135,34 @@ export default function HomeScreen() {
       >
         <IconSymbol name="plus" size={28} color="#FFFFFF" />
       </TouchableOpacity>
+      <Modal
+        visible={selectedImageUri !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSelectedImageUri(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setSelectedImageUri(null)}
+        >
+          <View style={styles.modalImageContainer}>
+            {selectedImageUri && (
+              <Image
+                source={{ uri: selectedImageUri }}
+                style={styles.modalImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setSelectedImageUri(null)}
+          >
+            <IconSymbol name="xmark.circle.fill" size={32} color="#FFFFFF" />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -133,17 +196,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemsContainer: {
-    gap: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
     marginLeft: 4,
   },
-  itemRow: {
-    flexDirection: "row",
+  itemCard: {
+    width: 80,
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 4,
+    padding: 8,
+    borderRadius: 8,
+  },
+  itemImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: "white",
   },
   itemName: {
-    fontSize: 15,
+    fontSize: 12,
+    marginTop: 6,
+    textAlign: "center",
   },
   fab: {
     position: "absolute",
@@ -170,5 +243,27 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: "center",
     opacity: 0.6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalImageContainer: {
+    width: "90%",
+    height: "80%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalImage: {
+    width: "100%",
+    height: "100%",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    padding: 8,
   },
 });

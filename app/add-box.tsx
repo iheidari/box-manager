@@ -3,10 +3,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Image,
+  Modal,
   ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -26,6 +29,7 @@ export default function AddBoxScreen() {
   const [items, setItems] = useState<Item[]>([
     { id: "1", name: "", imageUri: null },
   ]);
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   // Generate a stable ID for new boxes, or use params.id for editing
   // Use ref to persist new box ID across re-renders
   const newBoxIdRef = useRef<string | null>(null);
@@ -377,6 +381,18 @@ export default function AddBoxScreen() {
                   value={item.name}
                   onChangeText={(text) => handleItemNameChange(item.id, text)}
                 />
+                {item.imageUri && (
+                  <TouchableOpacity
+                    onPress={() => setSelectedImageUri(item.imageUri)}
+                    activeOpacity={0.8}
+                  >
+                    <Image
+                      source={{ uri: item.imageUri }}
+                      style={styles.thumbnailImage}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   style={[
                     styles.cameraButton,
@@ -396,6 +412,34 @@ export default function AddBoxScreen() {
           </ThemedView>
         </ThemedView>
       </ScrollView>
+      <Modal
+        visible={selectedImageUri !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSelectedImageUri(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setSelectedImageUri(null)}
+        >
+          <View style={styles.modalImageContainer}>
+            {selectedImageUri && (
+              <Image
+                source={{ uri: selectedImageUri }}
+                style={styles.modalImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setSelectedImageUri(null)}
+          >
+            <IconSymbol name="xmark.circle.fill" size={32} color="#FFFFFF" />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -465,11 +509,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 44,
   },
+  thumbnailImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+  },
   cameraButton: {
     width: 44,
     height: 44,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalImageContainer: {
+    width: "90%",
+    height: "80%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalImage: {
+    width: "100%",
+    height: "100%",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    padding: 8,
   },
 });
