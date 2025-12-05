@@ -1,4 +1,5 @@
-import { FlatList, StyleSheet } from "react-native";
+import { router } from "expo-router";
+import { FlatList, StyleSheet, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
@@ -81,6 +82,10 @@ export default function HomeScreen() {
     </ThemedView>
   );
 
+  const handleAddBox = () => {
+    router.push("/add-box");
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ThemedView style={styles.header}>
@@ -93,6 +98,19 @@ export default function HomeScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
+      <TouchableOpacity
+        style={[
+          styles.fab,
+          {
+            backgroundColor:
+              theme === "light" ? Colors.light.tint : Colors.light.tint,
+          },
+        ]}
+        onPress={handleAddBox}
+        activeOpacity={0.8}
+      >
+        <IconSymbol name="plus" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -137,5 +155,23 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 15,
+  },
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 });

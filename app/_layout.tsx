@@ -23,6 +23,10 @@ export default function RootLayout() {
           name="modal"
           options={{ presentation: "modal", title: "Modal" }}
         />
+        <Stack.Screen
+          name="add-box"
+          options={{ presentation: "card", headerShown: false }}
+        />
       </Stack>
     </ThemeProvider>
   );
