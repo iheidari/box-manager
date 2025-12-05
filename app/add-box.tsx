@@ -1,5 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -20,11 +20,13 @@ import { Box, Item, storage } from "@/utils/storage";
 export default function AddBoxScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme ?? "light";
+  const params = useLocalSearchParams<{ id?: string }>();
+  const isEditing = !!params.id;
   const [boxTitle, setBoxTitle] = useState("");
   const [items, setItems] = useState<Item[]>([
     { id: "1", name: "", imageUri: null },
   ]);
-  const [boxId] = useState(() => Date.now().toString());
+  const [boxId] = useState(() => params.id || Date.now().toString());
   const boxTitleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const itemNameTimeoutsRef = useRef<
     Map<string, ReturnType<typeof setTimeout>>
@@ -33,17 +35,35 @@ export default function AddBoxScreen() {
   const boxTitleRef = useRef(boxTitle);
   const itemsRef = useRef(items);
 
-  // Initialize default box title on mount
+  // Initialize box data on mount
   useEffect(() => {
-    const initializeDefaultTitle = async () => {
-      const existingBoxes = await storage.getBoxes();
-      const nextBoxNumber = existingBoxes.length + 1;
-      const defaultTitle = `Box ${nextBoxNumber}`;
-      setBoxTitle(defaultTitle);
-      boxTitleRef.current = defaultTitle;
+    const initializeBox = async () => {
+      if (isEditing && params.id) {
+        // Load existing box for editing
+        const existingBoxes = await storage.getBoxes();
+        const boxToEdit = existingBoxes.find((b) => b.id === params.id);
+        if (boxToEdit) {
+          setBoxTitle(boxToEdit.name);
+          boxTitleRef.current = boxToEdit.name;
+          // Ensure at least one item exists
+          const boxItems =
+            boxToEdit.items.length > 0
+              ? boxToEdit.items
+              : [{ id: Date.now().toString(), name: "", imageUri: null }];
+          setItems(boxItems);
+          itemsRef.current = boxItems;
+        }
+      } else {
+        // Initialize default box title for new box
+        const existingBoxes = await storage.getBoxes();
+        const nextBoxNumber = existingBoxes.length + 1;
+        const defaultTitle = `Box ${nextBoxNumber}`;
+        setBoxTitle(defaultTitle);
+        boxTitleRef.current = defaultTitle;
+      }
     };
-    initializeDefaultTitle();
-  }, []);
+    initializeBox();
+  }, [isEditing, params.id]);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -206,7 +226,7 @@ export default function AddBoxScreen() {
           />
         </TouchableOpacity>
         <ThemedText type="title" style={styles.title}>
-          Add New Box
+          {isEditing ? "Edit Box" : "Add New Box"}
         </ThemedText>
       </ThemedView>
       <ScrollView style={styles.scrollView}>

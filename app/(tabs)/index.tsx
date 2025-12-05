@@ -28,31 +28,40 @@ export default function HomeScreen() {
     }, [loadBoxes])
   );
 
+  const handleBoxPress = (boxId: string) => {
+    router.push(`/add-box?id=${boxId}`);
+  };
+
   const renderBox = ({ item: box }: { item: Box }) => (
-    <ThemedView style={[styles.boxContainer, { borderColor }]}>
-      <ThemedView style={styles.boxHeader}>
-        <IconSymbol
-          name="cube.box"
-          size={24}
-          color={theme === "light" ? Colors.light.tint : Colors.dark.tint}
-        />
-        <ThemedText type="subtitle" style={styles.boxName}>
-          {box.name}
-        </ThemedText>
+    <TouchableOpacity
+      onPress={() => handleBoxPress(box.id)}
+      activeOpacity={0.7}
+    >
+      <ThemedView style={[styles.boxContainer, { borderColor }]}>
+        <ThemedView style={styles.boxHeader}>
+          <IconSymbol
+            name="cube.box"
+            size={24}
+            color={theme === "light" ? Colors.light.tint : Colors.dark.tint}
+          />
+          <ThemedText type="subtitle" style={styles.boxName}>
+            {box.name}
+          </ThemedText>
+        </ThemedView>
+        <ThemedView style={styles.itemsContainer}>
+          {box.items.map((item) => (
+            <ThemedView key={item.id} style={styles.itemRow}>
+              <IconSymbol
+                name="circle.fill"
+                size={8}
+                color={theme === "light" ? Colors.light.icon : Colors.dark.icon}
+              />
+              <ThemedText style={styles.itemName}>{item.name}</ThemedText>
+            </ThemedView>
+          ))}
+        </ThemedView>
       </ThemedView>
-      <ThemedView style={styles.itemsContainer}>
-        {box.items.map((item) => (
-          <ThemedView key={item.id} style={styles.itemRow}>
-            <IconSymbol
-              name="circle.fill"
-              size={8}
-              color={theme === "light" ? Colors.light.icon : Colors.dark.icon}
-            />
-            <ThemedText style={styles.itemName}>{item.name}</ThemedText>
-          </ThemedView>
-        ))}
-      </ThemedView>
-    </ThemedView>
+    </TouchableOpacity>
   );
 
   const handleAddBox = () => {
@@ -105,8 +114,8 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 20,
-    paddingTop: 0,
-    gap: 16,
+    paddingTop: 16,
+    gap: 8,
   },
   boxContainer: {
     borderRadius: 12,
