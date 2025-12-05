@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
+  Alert,
   FlatList,
   Image,
   Modal,
@@ -40,6 +41,29 @@ export default function HomeScreen() {
     router.push(`/add-box?id=${boxId}`);
   };
 
+  const handleDeleteBox = (boxId: string, boxName: string) => {
+    Alert.alert(
+      "Delete Box",
+      `Are you sure you want to delete "${boxName}"? This action cannot be undone.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const boxes = await storage.getBoxes();
+            const updatedBoxes = boxes.filter((box) => box.id !== boxId);
+            await storage.saveBoxes(updatedBoxes);
+            setBoxes(updatedBoxes);
+          },
+        },
+      ]
+    );
+  };
+
   const renderBox = ({ item: box }: { item: Box }) => (
     <TouchableOpacity
       onPress={() => handleBoxPress(box.id)}
@@ -55,6 +79,33 @@ export default function HomeScreen() {
           <ThemedText type="subtitle" style={styles.boxName}>
             {box.name}
           </ThemedText>
+          <TouchableOpacity
+            style={[
+              styles.deleteBoxButton,
+              {
+                backgroundColor:
+                  theme === "light"
+                    ? "rgba(255, 59, 48, 0.1)"
+                    : "rgba(255, 59, 48, 0.2)",
+              },
+            ]}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleDeleteBox(box.id, box.name);
+            }}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <IconSymbol
+              name="trash.fill"
+              size={16}
+              color={
+                theme === "light"
+                  ? "rgba(255, 59, 48, 1)"
+                  : "rgba(255, 59, 48, 0.9)"
+              }
+            />
+          </TouchableOpacity>
         </ThemedView>
         <ThemedView style={styles.itemsContainer}>
           {box.items.map((item) => (
@@ -106,7 +157,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ThemedView style={styles.header}>
-        <ThemedText type="title">My Boxes</ThemedText>
+        <ThemedText type="title">Boxes</ThemedText>
       </ThemedView>
       <FlatList
         data={boxes}
@@ -195,6 +246,13 @@ const styles = StyleSheet.create({
   boxName: {
     flex: 1,
   },
+  deleteBoxButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   itemsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -220,8 +278,8 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    right: 20,
-    bottom: 20,
+    right: 32,
+    bottom: 32,
     width: 56,
     height: 56,
     borderRadius: 28,
