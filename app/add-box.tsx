@@ -50,6 +50,8 @@ export default function AddBoxScreen() {
   // Use refs to track latest values for timeouts
   const boxTitleRef = useRef(boxTitle);
   const itemsRef = useRef(items);
+  const itemInputRefs = useRef<Map<string, TextInput>>(new Map());
+  const newlyAddedItemIdRef = useRef<string | null>(null);
 
   // Reset new box ID when switching from editing to creating
   useEffect(() => {
@@ -109,6 +111,21 @@ export default function AddBoxScreen() {
     itemsRef.current = items;
   }, [items]);
 
+  // Auto-focus on newly added item
+  useEffect(() => {
+    if (newlyAddedItemIdRef.current) {
+      const itemId = newlyAddedItemIdRef.current;
+      // Use setTimeout to ensure the TextInput is rendered
+      setTimeout(() => {
+        const inputRef = itemInputRefs.current.get(itemId);
+        if (inputRef) {
+          inputRef.focus();
+        }
+        newlyAddedItemIdRef.current = null;
+      }, 100);
+    }
+  }, [items]);
+
   const saveBox = async (title: string, boxItems: Item[]) => {
     // Only save if box has a title
     if (!title.trim()) {
@@ -157,15 +174,17 @@ export default function AddBoxScreen() {
   };
 
   const handleAddItem = async () => {
+    const newItemId = Date.now().toString();
     const newItems = [
       ...items,
       {
-        id: Date.now().toString(),
-        name: "",
+        id: newItemId,
+        name: `${items.length + 1}`,
         imageUri: null,
       },
     ];
     setItems(newItems);
+    newlyAddedItemIdRef.current = newItemId;
     // Save immediately when item is added
     await saveBox(boxTitle, newItems);
   };
@@ -249,6 +268,8 @@ export default function AddBoxScreen() {
           const updatedItems = items.filter((item) => item.id !== itemId);
           setItems(updatedItems);
           itemsRef.current = updatedItems;
+          // Clean up the ref for deleted item
+          itemInputRefs.current.delete(itemId);
           // Save immediately when item is deleted
           await saveBox(boxTitle, updatedItems);
         },
@@ -357,6 +378,13 @@ export default function AddBoxScreen() {
                   />
                 </TouchableOpacity>
                 <TextInput
+                  ref={(ref) => {
+                    if (ref) {
+                      itemInputRefs.current.set(item.id, ref);
+                    } else {
+                      itemInputRefs.current.delete(item.id);
+                    }
+                  }}
                   style={[
                     styles.itemInput,
                     {
