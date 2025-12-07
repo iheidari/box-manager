@@ -18,6 +18,7 @@ import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { deleteImage, saveImagePermanently } from "@/utils/image-storage";
 import { Box, Item, storage } from "@/utils/storage";
 
 export default function AddBoxScreen() {
@@ -239,19 +240,36 @@ export default function AddBoxScreen() {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: "images",
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
     });
 
     if (!result.canceled && result.assets[0]) {
-      const updatedItems = items.map((item) =>
-        item.id === itemId ? { ...item, imageUri: result.assets[0].uri } : item
-      );
-      setItems(updatedItems);
-      // Save immediately when image is added
-      await saveBox(boxTitle, updatedItems);
+      try {
+        // Find the current item to delete its old image if it exists
+        const currentItem = items.find((item) => item.id === itemId);
+        if (currentItem?.imageUri) {
+          await deleteImage(currentItem.imageUri);
+        }
+
+        // Save image to permanent location
+        const permanentUri = await saveImagePermanently(
+          result.assets[0].uri,
+          itemId
+        );
+
+        const updatedItems = items.map((item) =>
+          item.id === itemId ? { ...item, imageUri: permanentUri } : item
+        );
+        setItems(updatedItems);
+        // Save immediately when image is added
+        await saveBox(boxTitle, updatedItems);
+      } catch (error) {
+        console.error("Error saving image:", error);
+        Alert.alert("Error", "Failed to save image. Please try again.");
+      }
     }
   };
 
@@ -265,6 +283,12 @@ export default function AddBoxScreen() {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
+          // Find the item to delete its image
+          const itemToDelete = items.find((item) => item.id === itemId);
+          if (itemToDelete?.imageUri) {
+            await deleteImage(itemToDelete.imageUri);
+          }
+
           const updatedItems = items.filter((item) => item.id !== itemId);
           setItems(updatedItems);
           itemsRef.current = updatedItems;

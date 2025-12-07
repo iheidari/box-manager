@@ -16,6 +16,7 @@ import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { deleteImage } from "@/utils/image-storage";
 import { Box, storage } from "@/utils/storage";
 
 export default function HomeScreen() {
@@ -55,6 +56,17 @@ export default function HomeScreen() {
           style: "destructive",
           onPress: async () => {
             const boxes = await storage.getBoxes();
+            const boxToDelete = boxes.find((box) => box.id === boxId);
+
+            // Delete all images associated with items in this box
+            if (boxToDelete) {
+              await Promise.all(
+                boxToDelete.items.map((item) =>
+                  item.imageUri ? deleteImage(item.imageUri) : Promise.resolve()
+                )
+              );
+            }
+
             const updatedBoxes = boxes.filter((box) => box.id !== boxId);
             await storage.saveBoxes(updatedBoxes);
             setBoxes(updatedBoxes);
